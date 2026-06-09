@@ -1,0 +1,1 @@
+# jpql-check-maven-plugin
