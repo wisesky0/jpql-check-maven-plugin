@@ -62,6 +62,7 @@ public final class FunctionCatalog {
         return map;
     }
 
+    /** jpql-functions.json 로드 실패 시 폴백. JSON과 동일한 함수 목록을 유지할 것. */
     private static Map<String, FunctionEntry> builtIn() {
         Map<String, FunctionEntry> m = new HashMap<>();
         for (String fn : List.of("abs", "sign", "floor", "ceiling", "sqrt", "exp", "ln")) {
@@ -94,6 +95,15 @@ public final class FunctionCatalog {
             null, "JPA_STANDARD", "1.0"));
         m.put("cast", new FunctionEntry("cast", TypeCategory.GENERAL, 2, 2,
             null, "JPA_STANDARD", "1.0"));
+        // JSON 대비 누락 방지: 인자 없는 함수 및 범용 함수
+        for (String fn : List.of("current_date", "current_time", "current_timestamp")) {
+            m.put(fn, new FunctionEntry(fn, TypeCategory.DATETIME, 0, 0,
+                null, "JPA_STANDARD", "1.0"));
+        }
+        m.put("size", new FunctionEntry("size", TypeCategory.NUMERIC, 1, 1,
+            List.of(TypeCategory.GENERAL), "JPA_STANDARD", "1.0"));
+        m.put("str", new FunctionEntry("str", TypeCategory.STRING, 1, 1,
+            List.of(TypeCategory.GENERAL), "HIBERNATE_EXTENSION", "1.0"));
         return m;
     }
 }
