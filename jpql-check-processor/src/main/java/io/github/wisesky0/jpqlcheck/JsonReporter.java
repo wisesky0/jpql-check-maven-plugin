@@ -19,15 +19,19 @@ public class JsonReporter {
         ArrayNode arr = root.putArray("findings");
         for (Finding f : findings) {
             ObjectNode node = arr.addObject();
+            node.put("ruleId", f.ruleId());
+            node.put("severity", f.severity());
             node.put("sourceFile", f.sourceFile());
             node.put("line", f.line());
-            node.put("column", f.columnName());
+            node.put("column", f.column());
+            node.put("templateString", f.templateString());
             node.put("functionName", f.functionName());
-            node.put("entity", f.entity());
-            node.put("actualType", f.actualType());
+            node.put("offendingExpression", f.offendingExpression());
+            node.put("inferredType", f.inferredType());
             node.put("expectedType", f.expectedType());
-            node.put("severity", f.severity());
+            node.put("relatedLine", f.relatedLine());
             node.put("reason", f.reason());
+            node.put("recommendation", f.recommendation());
         }
         root.put("totalFindings", findings.size());
         root.put("errors", (int) findings.stream().filter(f -> "ERROR".equals(f.severity())).count());

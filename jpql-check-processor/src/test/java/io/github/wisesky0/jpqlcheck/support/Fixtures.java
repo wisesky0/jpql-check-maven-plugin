@@ -1,13 +1,12 @@
 package io.github.wisesky0.jpqlcheck.support;
 
 import io.github.wisesky0.jpqlcheck.Finding;
-import io.github.wisesky0.jpqlcheck.TypeCategory;
 import io.github.wisesky0.jpqlcheck.TypeNormalizer;
 
 import java.util.List;
 
 /**
- * Test fixtures for JPQL function type mismatch tests.
+ * Test fixtures for JPQL check tests.
  */
 public final class Fixtures {
 
@@ -28,25 +27,35 @@ public final class Fixtures {
 
     // --- Finding fixtures ---
 
-    public static Finding errorFinding(String functionName, String entity, String col,
-                                       String actualType, String expectedCategory) {
-        return new Finding("TestFile.java", 10L, 5L, functionName,
-            entity, col, actualType, expectedCategory, "ERROR",
-            "ArgumentsValidator: " + functionName + " requires " + expectedCategory);
+    public static Finding error1Finding(String functionName, String offendingExpr,
+                                        String inferredType, String expectedCategory) {
+        return new Finding("D-01", "ERROR", "TestFile.java", 10L, 5L,
+            functionName.toUpperCase() + "({0})", functionName, offendingExpr,
+            inferredType, expectedCategory, -1L,
+            "등록 함수 " + functionName + "의 인자 타입 불일치 (PRD 오류 1)",
+            "cast 적용 — \"" + functionName.toUpperCase() + "(cast({0} as long))\" (PRD E-01)");
     }
 
-    public static Finding warningFinding(String functionName, String entity, String col,
-                                         String actualType, String expectedCategory) {
-        return new Finding("TestFile.java", 10L, 5L, functionName,
-            entity, col, actualType, expectedCategory, "WARNING",
-            "UNRESOLVED - 타입을 정적으로 결정할 수 없습니다");
+    public static Finding error2Finding(String functionName, String offendingExpr, long relatedLine) {
+        return new Finding(relatedLine >= 0 ? "D-08" : "D-03", "ERROR", "TestFile.java", 20L, 5L,
+            functionName.toUpperCase() + "({0}, {1})", functionName, offendingExpr,
+            "java.lang.String", "java.lang.Object(미등록 함수 반환 추론)", relatedLine,
+            "미등록 함수 " + functionName + "의 반환이 Object로 추론되어 Path와 비교 시 예외 (PRD 오류 2)",
+            "function('" + functionName.toUpperCase() + "', ...) 구문으로 우회 (PRD E-02)");
+    }
+
+    public static Finding warningFinding(String functionName, String offendingExpr) {
+        return new Finding("D-01", "WARNING", "TestFile.java", 10L, 5L,
+            functionName.toUpperCase() + "({0})", functionName, offendingExpr,
+            TypeNormalizer.UNRESOLVED, "NUMERIC", -1L,
+            "UNRESOLVED - 타입을 정적으로 결정할 수 없습니다", null);
     }
 
     public static List<Finding> sampleFindings() {
         return List.of(
-            errorFinding("abs", "Product", "name", "java.lang.String", "NUMERIC"),
-            errorFinding("length", "Order", "amount", "java.lang.Long", "STRING"),
-            warningFinding("sqrt", "Item", "score", TypeNormalizer.UNRESOLVED, "NUMERIC")
+            error1Finding("abs", "product.name", "java.lang.String", "NUMERIC"),
+            error2Finding("date_format", "order.stringDttm", -1L),
+            warningFinding("sqrt", "item.score")
         );
     }
 }

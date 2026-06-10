@@ -1,0 +1,33 @@
+{
+  "description": "Hibernate 6.6.49.Final 등록 함수 카탈로그 (PRD R-03, I-02). docs/analysis/hibernate-function-catalog.md 와 함께 갱신할 것.",
+  "functions": [
+    { "name": "abs",      "category": "NUMERIC", "minArgs": 1, "maxArgs": 1,  "argCategories": ["NUMERIC"],                       "source": "JPA_STANDARD", "minJpaVersion": "2.0" },
+    { "name": "sign",     "category": "NUMERIC", "minArgs": 1, "maxArgs": 1,  "argCategories": ["NUMERIC"],                       "source": "JPA_STANDARD", "minJpaVersion": "2.0" },
+    { "name": "floor",    "category": "NUMERIC", "minArgs": 1, "maxArgs": 1,  "argCategories": ["NUMERIC"],                       "source": "JPA_STANDARD", "minJpaVersion": "2.0" },
+    { "name": "ceiling",  "category": "NUMERIC", "minArgs": 1, "maxArgs": 1,  "argCategories": ["NUMERIC"],                       "source": "JPA_STANDARD", "minJpaVersion": "2.0" },
+    { "name": "sqrt",     "category": "NUMERIC", "minArgs": 1, "maxArgs": 1,  "argCategories": ["NUMERIC"],                       "source": "JPA_STANDARD", "minJpaVersion": "2.0" },
+    { "name": "exp",      "category": "NUMERIC", "minArgs": 1, "maxArgs": 1,  "argCategories": ["NUMERIC"],                       "source": "JPA_STANDARD", "minJpaVersion": "2.0" },
+    { "name": "ln",       "category": "NUMERIC", "minArgs": 1, "maxArgs": 1,  "argCategories": ["NUMERIC"],                       "source": "JPA_STANDARD", "minJpaVersion": "2.0" },
+    { "name": "power",    "category": "NUMERIC", "minArgs": 2, "maxArgs": 2,  "argCategories": ["NUMERIC", "NUMERIC"],            "source": "JPA_STANDARD", "minJpaVersion": "2.0" },
+    { "name": "mod",      "category": "NUMERIC", "minArgs": 2, "maxArgs": 2,  "argCategories": ["NUMERIC", "NUMERIC"],            "source": "JPA_STANDARD", "minJpaVersion": "1.0" },
+    { "name": "round",    "category": "NUMERIC", "minArgs": 1, "maxArgs": 2,  "argCategories": ["NUMERIC", "NUMERIC"],            "source": "JPA_STANDARD", "minJpaVersion": "3.2" },
+    { "name": "length",   "category": "STRING",  "minArgs": 1, "maxArgs": 1,  "argCategories": ["STRING"],                        "source": "JPA_STANDARD", "minJpaVersion": "1.0" },
+    { "name": "lower",    "category": "STRING",  "minArgs": 1, "maxArgs": 1,  "argCategories": ["STRING"],                        "source": "JPA_STANDARD", "minJpaVersion": "1.0" },
+    { "name": "upper",    "category": "STRING",  "minArgs": 1, "maxArgs": 1,  "argCategories": ["STRING"],                        "source": "JPA_STANDARD", "minJpaVersion": "1.0" },
+    { "name": "trim",     "category": "STRING",  "minArgs": 1, "maxArgs": 1,  "argCategories": ["STRING"],                        "source": "JPA_STANDARD", "minJpaVersion": "1.0" },
+    { "name": "substring","category": "STRING",  "minArgs": 2, "maxArgs": 3,  "argCategories": ["STRING", "NUMERIC", "NUMERIC"],  "source": "JPA_STANDARD", "minJpaVersion": "1.0" },
+    { "name": "locate",   "category": "STRING",  "minArgs": 2, "maxArgs": 3,  "argCategories": ["STRING", "STRING", "NUMERIC"],   "source": "JPA_STANDARD", "minJpaVersion": "1.0" },
+    { "name": "concat",   "category": "STRING",  "minArgs": 2, "maxArgs": -1, "argCategories": null,                              "source": "JPA_STANDARD", "minJpaVersion": "1.0" },
+    { "name": "extract",  "category": "DATETIME","minArgs": 2, "maxArgs": 2,  "argCategories": ["GENERAL", "DATETIME"],           "source": "JPA_STANDARD", "minJpaVersion": "2.0" },
+    { "name": "coalesce", "category": "GENERAL", "minArgs": 2, "maxArgs": -1, "argCategories": null,                              "source": "JPA_STANDARD", "minJpaVersion": "1.0" },
+    { "name": "nullif",   "category": "GENERAL", "minArgs": 2, "maxArgs": 2,  "argCategories": null,                              "source": "JPA_STANDARD", "minJpaVersion": "1.0" },
+    { "name": "cast",     "category": "GENERAL", "minArgs": 2, "maxArgs": 2,  "argCategories": null,                              "source": "JPA_STANDARD", "minJpaVersion": "1.0" },
+    { "name": "current_date",      "category": "DATETIME", "minArgs": 0, "maxArgs": 0, "argCategories": null,                     "source": "JPA_STANDARD", "minJpaVersion": "1.0" },
+    { "name": "current_time",      "category": "DATETIME", "minArgs": 0, "maxArgs": 0, "argCategories": null,                     "source": "JPA_STANDARD", "minJpaVersion": "1.0" },
+    { "name": "current_timestamp", "category": "DATETIME", "minArgs": 0, "maxArgs": 0, "argCategories": null,                     "source": "JPA_STANDARD", "minJpaVersion": "1.0" },
+    { "name": "size",     "category": "NUMERIC", "minArgs": 1, "maxArgs": 1,  "argCategories": ["GENERAL"],                       "source": "JPA_STANDARD", "minJpaVersion": "1.0" },
+    { "name": "str",      "category": "STRING",  "minArgs": 1, "maxArgs": 1,  "argCategories": ["GENERAL"],                       "source": "HIBERNATE_EXTENSION", "minJpaVersion": "1.0" },
+    { "name": "format",   "category": "STRING",  "minArgs": 2, "maxArgs": 2,  "argCategories": ["DATETIME", "GENERAL"],            "source": "HIBERNATE_EXTENSION", "minJpaVersion": "6.0",
+      "note": "format({0} as 'pattern') — HQL 전용 구문. DATE_FORMAT 대체. 인자 사이에 'as' 키워드가 오는 특수 구문이므로 인자 개수는 논리적으로 2개로 취급." }
+  ]
+}
