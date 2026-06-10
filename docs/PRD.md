@@ -1,10 +1,11 @@
 # PRD: QueryDSL Template 기반 JPQL 타입 불일치 런타임 오류 정적 감지
 
-> **버전**: 3.1
+> **버전**: 3.2
 > **작성일**: 2026-06-10
 > **변경 이력**:
 > - 3.0 — 신규 작성 (이전 버전 미참조)
 > - 3.1 — 비교 대상 유형(리터럴/Constant/Path)에 따른 오류 발생 조건 반영, 판정 알고리즘·시스템 구성·수용 기준 추가 (개발 착수 가능 수준으로 보완)
+> - 3.2 — 템플릿 표현식을 로컬 변수에 할당 후 비교에 사용하는 패턴 반영 (3.3.1, D-08, I-06, TC-15~16)
 
 ---
 
@@ -39,6 +40,8 @@ Hibernate 5.4.20.Final에서는 통과하던 QueryDSL `Expressions.*Template(...
 | **등록 함수** | Hibernate 6.6.49.Final의 함수 레지스트리에 시그니처(인자 타입·반환 타입)가 정의된 JPQL/HQL 함수 (예: `ABS`, `LOWER`, `SUBSTRING`). |
 | **미등록 함수** | Hibernate 레지스트리에 없는 DB 네이티브 함수 (예: MySQL `DATE_FORMAT`). 반환 타입을 알 수 없어 **`Object`로 추론**된다. |
 | **TypecheckUtil 검사** | 쿼리 실행 시 HQL→SQM 컴파일 과정에서 수행되는 피연산자 타입 호환성 검사. 불일치 시 `SemanticException` 계열 예외가 발생한다. |
+| **위험 템플릿 변수** | 미등록 함수를 포함한 템플릿 표현식의 결과가 대입된 로컬 변수. 직접 비교 연산에 참여하지 않더라도 이후 비교 지점에서 동일한 위험을 갖는다. 판정 알고리즘의 Pass 0에서 수집된다. |
+| **메서드 내 변수 추적** | 동일 메서드 본문(블록) 내에서 위험 템플릿 변수 대입과 그 사용 지점을 연결하는 분석. 메서드 경계를 넘는 추적(inter-method)은 본 도구의 범위 밖이다. |
 
 ---
 
@@ -110,6 +113,29 @@ qEntity.stringDttm.goe(Expressions.stringTemplate("DATE_FORMAT({0}, {1})", qEnti
   **Path 계열(또는 타입이 확정된 표현식)과 비교 연산으로 결합**될 때.
   비교 대상이 좌변이든 우변이든, 함수 인자가 바인딩(`{1}`)이든 템플릿 내 리터럴(`'%Y%m%d'`)이든 동일하게 발생한다.
 
+#### 3.3.1 추가 패턴 — 템플릿 표현식을 로컬 변수에 할당 후 비교에 사용
+
+템플릿 표현식이 비교 연산에 **즉시 체이닝되지 않고** 로컬 변수에 대입된 뒤,
+별도의 `where`/`having` 호출에서 Path 계열과 비교되는 경우도 동일하게 오류가 발생한다.
+
+```java
+// 변수에 할당
+StringExpression dateFormat =
+    Expressions.stringTemplate("DATE_FORMAT({0}, {1})", qEntity.column, "%Y%m%d");
+
+// 이후 where/having 에서 Path 계열과 비교 → 런타임 예외
+query.where(dateFormat.goe(qEntity.stringDttm));          // 변수가 좌변
+query.where(qEntity.stringDttm.loe(dateFormat));          // 변수가 우변
+query.having(dateFormat.gt(qEntity.stringDttm));          // having 절도 동일
+```
+
+- **감지 난이도**: 템플릿 생성 지점과 비교 지점이 분리되므로, 감지 알고리즘에
+  **메서드 내 위험 템플릿 변수 추적(Pass 0)**이 추가로 필요하다.
+- **추적 범위**: 동일 메서드 본문 내에서만 추적한다. 변수가 다른 메서드로 전달되거나
+  반환되는 경우(inter-method)는 범위 밖이다(9장 참조).
+- **비교 대상 조건**: 직접 비교 패턴(3.3)과 동일하게 비교 대상이
+  Path 계열이면 감지, Constant 계열이면 미감지한다.
+
 ---
 
 ## 4. 요구사항
@@ -134,6 +160,7 @@ qEntity.stringDttm.goe(Expressions.stringTemplate("DATE_FORMAT({0}, {1})", qEnti
 | D-05 | D-03은 비교 연산의 **좌변/우변 어느 쪽에 템플릿이 위치하든** 감지해야 한다. (템플릿`.goe(path)` 형태와 path`.goe(템플릿)` 형태 모두) |
 | D-06 | D-03은 미등록 함수의 인자가 파라미터 바인딩(`{1}`)이든 템플릿 내 리터럴(`'%Y%m%d'`)이든 동일하게 감지해야 한다. |
 | D-07 | 감지는 **비교 연산이 결합되는 지점**에서 수행한다. `where`/`having` 절 전달 여부의 데이터플로 추적은 요구하지 않는다(보수적 근사). |
+| D-08 | **오류 2 — 변수 경유 패턴 감지**: 미등록 함수 템플릿 표현식이 로컬 변수에 대입된 경우, 그 변수가 비교 연산에서 Path 계열과 결합되면 감지한다. D-03~D-06 규칙을 동일하게 적용한다. 추적은 동일 메서드 본문 내로 한정한다. |
 
 ### 4.3 감지 제외(우회 패턴) 요구사항
 
@@ -151,23 +178,48 @@ qEntity.stringDttm.goe(Expressions.stringTemplate("DATE_FORMAT({0}, {1})", qEnti
 각 `Expressions.*Template(..)` 호출 지점에 대해 다음 순서로 판정한다.
 
 ```
-입력: 템플릿 문자열 T, 바인딩 인자 목록 A[0..n], 해당 표현식의 사용 문맥 C
+분석 단위: 메서드 본문(MethodTree) 1개
+
+--- Pass 0: 위험 템플릿 변수 집합 구성 ---
+
+메서드 내 모든 로컬 변수 선언(VariableTree)을 스캔한다.
+우변이 Expressions.*Template(..) 호출이고,
+해당 템플릿 문자열에 미등록 함수가 포함된 경우,
+해당 변수명을 "위험 템플릿 변수 집합" V에 추가한다.        [D-08]
+
+  예) StringExpression expr =
+          Expressions.stringTemplate("DATE_FORMAT({0},{1})", ...);
+      → V = { expr }
+
+--- Pass 1: 각 Expressions.*Template(..) 호출 지점 검사 ---
+
+입력: 템플릿 문자열 T, 바인딩 인자 목록 A[0..n], 사용 문맥 C
 
 1. T를 파싱하여 함수 호출 목록 F를 추출한다.
-   - function('NAME', ...) 구문이 사용된 함수는 F에서 제외한다.        [E-02]
+   - function('NAME', ...) 구문이 사용된 함수는 F에서 제외한다.    [E-02]
 
 2. F의 각 함수 f에 대해:
    a. f가 함수 카탈로그(R-03)에 존재하면 → [오류 1 검사]
       - f의 인자 위치에 바인딩된 A[i]를 식별한다.
-      - A[i]에 cast(.. as ..)가 적용되어 있으면 통과한다.            [E-01]
-      - A[i]가 Constant 계열이면 통과한다.                           [D-02]
+      - A[i]에 cast(.. as ..)가 적용되어 있으면 통과한다.          [E-01]
+      - A[i]가 Constant 계열이면 통과한다.                         [D-02]
       - A[i]가 Path 계열이고 그 타입이 f의 선언 인자 타입과
-        비호환이면 → Finding(오류 1) 보고                            [D-01]
-   b. f가 카탈로그에 없으면(미등록 함수) → [오류 2 검사]
-      - 이 템플릿 표현식이 비교 연산으로 결합되는 지점 C를 본다.    [D-07]
-      - 비교 대상이 Constant 계열이면 통과한다.                      [D-04]
+        비호환이면 → Finding(오류 1) 보고                          [D-01]
+   b. f가 카탈로그에 없으면(미등록 함수) → [오류 2 직접 비교 검사]
+      - 이 템플릿 표현식이 비교 연산으로 결합되는 지점 C를 본다.  [D-07]
+      - 비교 대상이 Constant 계열이면 통과한다.                    [D-04]
       - 비교 대상이 Path 계열이면 → Finding(오류 2) 보고
         (좌변/우변 무관 [D-05], f의 인자 형태 무관 [D-06])
+
+--- Pass 2: 위험 템플릿 변수의 비교 사용 지점 검사 ---
+
+메서드 내 모든 비교 연산(goe, gt, loe, lt, eq, ne, between, in 등)을 스캔한다.
+비교 연산의 좌변 또는 우변이 V에 속한 변수이면:            [D-08, D-05]
+  - 비교 대상(반대편 피연산자)이 Constant 계열이면 통과한다.      [D-04]
+  - 비교 대상이 Path 계열이면 → Finding(오류 2) 보고
+    (변수가 할당된 소스 라인과 비교 사용 소스 라인을 모두 Finding에 포함)
+
+--- 출력 ---
 
 3. 모든 Finding을 리포터로 출력한다.
 ```
@@ -195,7 +247,8 @@ qEntity.stringDttm.goe(Expressions.stringTemplate("DATE_FORMAT({0}, {1})", qEnti
 | I-02 | 함수 카탈로그(R-03 산출물)는 코드와 분리된 데이터(예: 리소스 파일)로 관리하여 함수 추가·수정 시 재컴파일 없이 갱신 가능해야 한다. |
 | I-03 | 템플릿 문자열이 **컴파일 타임 상수가 아닌 경우**(변수 조합 등) 판정 불가로 분류하고, 별도 심각도(`WARN`)로 보고한다. 누락(silent skip)시키지 않는다. |
 | I-04 | Maven 설정 파라미터를 제공한다: 검사 대상/제외 경로, 보고서 출력 형식(json/html/sarif)·경로, 오류 발견 시 빌드 실패 여부(`failOnError`), 추가 미등록 함수명 목록. |
-| I-05 | Finding은 최소한 다음을 포함한다: 규칙 ID(D-01/D-03 등), 심각도, 소스 파일·라인, 템플릿 문자열 원문, 문제 인자/비교 대상의 표현식과 추론 타입, 권장 우회 방법(E-01 또는 E-02 형식 예시). |
+| I-05 | Finding은 최소한 다음을 포함한다: 규칙 ID(D-01/D-03/D-08 등), 심각도, 소스 파일·라인, 템플릿 문자열 원문, 문제 인자/비교 대상의 표현식과 추론 타입, 권장 우회 방법(E-01 또는 E-02 형식 예시). |
+| I-06 | 변수 경유 패턴(D-08)의 Finding에는 **템플릿이 대입된 라인**과 **비교 연산이 발생한 라인**을 모두 포함하여 개발자가 두 지점을 즉시 확인할 수 있게 한다. |
 
 ---
 
@@ -217,6 +270,10 @@ qEntity.stringDttm.goe(Expressions.stringTemplate("DATE_FORMAT({0}, {1})", qEnti
 | TC-12 | 미등록 함수 템플릿을 비교 없이 select 절에서만 사용 | 미감지 (비교 결합 없음) |
 | TC-13 | 템플릿 문자열이 비상수(변수 조합) | WARN 보고 (I-03) |
 | TC-14 | 등록 함수 `LOWER({0})`에 `stringPath` 바인딩 | 미감지 (타입 호환) |
+| TC-15 | `StringExpression v = stringTemplate("DATE_FORMAT.."); query.where(v.goe(qEntity.stringDttm))` | **감지** (D-08) |
+| TC-16 | `StringExpression v = stringTemplate("DATE_FORMAT.."); query.where(v.goe("20210901"))` | 미감지 (D-04, Constant 계열) |
+| TC-17 | `StringExpression v = stringTemplate("DATE_FORMAT.."); query.where(qEntity.stringDttm.loe(v))` (변수가 우변) | **감지** (D-08, D-05) |
+| TC-18 | `StringExpression v = stringTemplate("DATE_FORMAT.."); query.having(v.gt(qEntity.stringDttm))` (having 절) | **감지** (D-08) |
 
 ---
 
@@ -236,5 +293,6 @@ qEntity.stringDttm.goe(Expressions.stringTemplate("DATE_FORMAT({0}, {1})", qEnti
 - 감지된 코드의 자동 수정(auto-fix)
 - QueryDSL Template 이외 경로의 쿼리(`@Query(nativeQuery = true)`, 문자열 JPQL 등) 분석
 - `where`/`having` 전달 여부까지 추적하는 데이터플로 분석 (D-07의 보수적 근사로 갈음)
+- 위험 템플릿 변수의 **메서드 경계를 넘는 추적** (inter-method): 변수를 파라미터로 전달하거나 반환값으로 받아 다른 메서드에서 비교에 사용하는 경우는 감지하지 않는다.
 - Hibernate 6.6.49.Final 이외 버전에 대한 호환성 검증
 - 런타임(실행 시점) 검증 — 본 도구는 빌드 시점 정적 분석만 수행한다
