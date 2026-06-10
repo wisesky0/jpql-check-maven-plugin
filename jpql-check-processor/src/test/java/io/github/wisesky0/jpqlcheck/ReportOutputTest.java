@@ -83,11 +83,21 @@ class ReportOutputTest {
 
     @Test
     void sarifReporter_containsRuleId() throws IOException {
-        List<Finding> findings = List.of(Fixtures.errorFinding("abs", "X", "y", "java.lang.String", "NUMERIC"));
+        List<Finding> findings = List.of(Fixtures.error1Finding("abs", "x.y", "java.lang.String", "NUMERIC"));
         new SarifReporter(tempDir).write(findings);
 
         String content = Files.readString(tempDir.resolve("results.sarif"));
-        assertTrue(content.contains("JPQL_TYPE_MISMATCH"), "SARIF should contain ruleId JPQL_TYPE_MISMATCH");
+        assertTrue(content.contains("\"ruleId\" : \"D-01\""), "SARIF should contain PRD rule id D-01");
+    }
+
+    @Test
+    void sarifReporter_d08FindingHasRelatedLocation() throws IOException {
+        List<Finding> findings = List.of(Fixtures.error2Finding("date_format", "order.stringDttm", 15L));
+        new SarifReporter(tempDir).write(findings);
+
+        String content = Files.readString(tempDir.resolve("results.sarif"));
+        assertTrue(content.contains("relatedLocations"), "I-06: D-08 finding should include related location");
+        assertTrue(content.contains("\"startLine\" : 15"));
     }
 
     @Test

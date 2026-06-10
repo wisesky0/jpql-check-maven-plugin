@@ -27,10 +27,10 @@ public class SarifReporter {
         ArrayNode results = run.putArray("results");
         for (Finding f : findings) {
             ObjectNode result = results.addObject();
-            result.put("ruleId", "JPQL_TYPE_MISMATCH");
+            result.put("ruleId", f.ruleId());
             result.put("level", "ERROR".equals(f.severity()) ? "error" : "warning");
             ObjectNode message = result.putObject("message");
-            message.put("text", f.reason());
+            message.put("text", f.reason() + (f.recommendation() != null ? " | 권장: " + f.recommendation() : ""));
             ArrayNode locations = result.putArray("locations");
             ObjectNode loc = locations.addObject();
             ObjectNode physicalLoc = loc.putObject("physicalLocation");
@@ -39,6 +39,14 @@ public class SarifReporter {
             ObjectNode region = physicalLoc.putObject("region");
             region.put("startLine", f.line());
             region.put("startColumn", f.column());
+            if (f.relatedLine() >= 0) {
+                ArrayNode related = result.putArray("relatedLocations");
+                ObjectNode rel = related.addObject();
+                ObjectNode relPhys = rel.putObject("physicalLocation");
+                relPhys.putObject("artifactLocation").put("uri", f.sourceFile());
+                relPhys.putObject("region").put("startLine", f.relatedLine());
+                rel.putObject("message").put("text", "위험 템플릿 변수 대입 지점");
+            }
         }
         Files.createDirectories(outputDir);
         mapper.writerWithDefaultPrettyPrinter().writeValue(outputDir.resolve("results.sarif").toFile(), root);

@@ -13,7 +13,7 @@ public final class TypeNormalizer {
         "com.querydsl.core.types.dsl.SimplePath", UNRESOLVED
     );
     private static final Pattern GENERIC_PATTERN =
-        Pattern.compile("com\\.querydsl\\.core\\.types\\.dsl\\.(Number|DateTime|Date|Time)Path<(.+)>");
+        Pattern.compile("com\\.querydsl\\.core\\.types\\.dsl\\.(Number|DateTime|Date|Time|Comparable|Enum|Simple)Path<(.+)>");
 
     private TypeNormalizer() {}
 
