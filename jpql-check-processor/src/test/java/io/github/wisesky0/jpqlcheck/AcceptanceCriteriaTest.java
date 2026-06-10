@@ -207,6 +207,22 @@ class AcceptanceCriteriaTest {
         assertTrue(FunctionCatalog.isRegistered("format"), "format 은 Hibernate 6 등록 함수여야 함");
     }
 
+    // --- 컴파일 비중단 모드 (jpql.check.failOnError=false) ---
+
+    @Test
+    void failOnErrorFalse_reportsAsWarningAndCompilationSucceeds() {
+        Compilation compilation = javac()
+            .withProcessors(new JpqlFunctionTypeProcessor())
+            .withOptions("-Ajpql.check.failOnError=false")
+            .compile(fixture("""
+                NumberExpression<Long> e = Expressions.numberTemplate(Long.class, "ABS({0})", col);
+                BooleanExpression p = Expressions.stringTemplate("DATE_FORMAT({0}, {1})", col, "%Y%m%d").goe(dttm);
+                """));
+        assertThat(compilation).succeeded();
+        assertThat(compilation).hadWarningContaining("[D-01]");
+        assertThat(compilation).hadWarningContaining("[D-03]");
+    }
+
     // --- 부가 검증: D-08 Finding의 관련 라인 메시지 (I-06) ---
 
     @Test

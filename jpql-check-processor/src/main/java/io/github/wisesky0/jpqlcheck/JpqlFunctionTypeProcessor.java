@@ -27,6 +27,7 @@ import java.util.*;
  */
 @SupportedAnnotationTypes("*")
 @SupportedSourceVersion(SourceVersion.RELEASE_17)
+@SupportedOptions({"jpql.check.reportDir", "jpql.check.formats", "jpql.check.failOnError"})
 public class JpqlFunctionTypeProcessor extends AbstractProcessor {
 
     /** 오류 2 감지 대상 비교 연산 (PRD D-03) */
@@ -442,7 +443,12 @@ public class JpqlFunctionTypeProcessor extends AbstractProcessor {
             if (relatedLine >= 0) msg.append("\n  관련 라인   : ").append(relatedLine).append(" (템플릿 대입 지점)");
             if (recommendation != null) msg.append("\n  권장 조치   : ").append(recommendation);
 
-            Diagnostic.Kind kind = "ERROR".equals(severity) ? Diagnostic.Kind.ERROR : Diagnostic.Kind.WARNING;
+            // jpql.check.failOnError=false 이면 ERROR도 WARNING으로 출력하여
+            // 컴파일을 중지시키지 않는다. 리포트의 Finding 심각도는 ERROR로 유지된다.
+            boolean failOnError = !"false".equalsIgnoreCase(
+                processingEnv.getOptions().getOrDefault("jpql.check.failOnError", "true"));
+            Diagnostic.Kind kind = "ERROR".equals(severity) && failOnError
+                ? Diagnostic.Kind.ERROR : Diagnostic.Kind.WARNING;
             Element element = trees.getElement(getCurrentPath());
             if (element != null) {
                 processingEnv.getMessager().printMessage(kind, msg.toString(), element);

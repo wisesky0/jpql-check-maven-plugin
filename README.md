@@ -103,6 +103,77 @@ Hibernate 미등록 네이티브 함수(DATE_FORMAT 등)를 포함한 템플릿 
 </plugin>
 ```
 
+### 오류를 출력하되 빌드를 중지하지 않는 설정 (리포트 전용 모드)
+
+마이그레이션 초기에 감지 건수가 많을 때 유용합니다. `jpql.check.failOnError=false`를 주면
+감지된 오류가 컴파일러 **WARNING**으로 출력되어 컴파일이 중지되지 않고 끝까지 진행되며,
+리포트(json/html/sarif)에는 심각도가 **ERROR**로 그대로 기록됩니다.
+
+```xml
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-compiler-plugin</artifactId>
+    <configuration>
+        <annotationProcessorPaths>
+            <path>
+                <groupId>io.github.wisesky0</groupId>
+                <artifactId>jpql-check-processor</artifactId>
+                <version>1.0.0-SNAPSHOT</version>
+            </path>
+        </annotationProcessorPaths>
+        <compilerArgs>
+            <arg>-Ajpql.check.reportDir=${project.build.directory}/jpql-check</arg>
+            <arg>-Ajpql.check.formats=json,html</arg>
+            <!-- 오류를 WARNING으로 출력하여 컴파일을 중지하지 않음 -->
+            <arg>-Ajpql.check.failOnError=false</arg>
+        </compilerArgs>
+    </configuration>
+</plugin>
+```
+
+빌드 실패 처리까지 완전히 끄려면 3단계의 Maven 플러그인 설정도 함께 변경합니다.
+
+```xml
+<configuration>
+    <failOnError>false</failOnError>
+</configuration>
+```
+
+프로파일로 분리하면 평소에는 리포트만 수집하고 CI에서만 엄격하게 실패시킬 수 있습니다.
+
+```xml
+<profiles>
+    <!-- 기본: 오류를 출력하되 빌드는 계속 진행 -->
+    <profile>
+        <id>jpql-report-only</id>
+        <activation><activeByDefault>true</activeByDefault></activation>
+        <properties>
+            <jpql.check.failOnError>false</jpql.check.failOnError>
+        </properties>
+    </profile>
+    <!-- CI: 오류 발견 시 빌드 실패 -->
+    <profile>
+        <id>jpql-strict</id>
+        <properties>
+            <jpql.check.failOnError>true</jpql.check.failOnError>
+        </properties>
+    </profile>
+</profiles>
+```
+
+```xml
+<!-- compilerArgs에서 프로퍼티 참조 -->
+<arg>-Ajpql.check.failOnError=${jpql.check.failOnError}</arg>
+```
+
+```bash
+# 평소: 리포트만 수집 (빌드 계속 진행)
+mvn compile
+
+# CI: 엄격 모드 (오류 발견 시 빌드 실패)
+mvn compile -P jpql-strict
+```
+
 ## 컴파일러 옵션 (어노테이션 프로세서 옵션)
 
 아래 항목을 `-A` 형식으로 maven-compiler-plugin compilerArgs에 전달합니다.
@@ -111,6 +182,7 @@ Hibernate 미등록 네이티브 함수(DATE_FORMAT 등)를 포함한 템플릿 
 |---|---|---|
 | jpql.check.reportDir | target/jpql-check | 리포트 출력 디렉터리 |
 | jpql.check.formats | json | 출력 형식. 쉼표 구분으로 복수 지정 가능 (json, html, sarif) |
+| jpql.check.failOnError | true | false면 ERROR를 컴파일러 WARNING으로 출력하여 컴파일을 중지하지 않음. 리포트에는 ERROR로 기록됨 |
 
 ## Maven 플러그인 설정 파라미터
 
