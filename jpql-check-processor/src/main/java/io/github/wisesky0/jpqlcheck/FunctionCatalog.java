@@ -104,6 +104,9 @@ public final class FunctionCatalog {
             List.of(TypeCategory.GENERAL), "JPA_STANDARD", "1.0"));
         m.put("str", new FunctionEntry("str", TypeCategory.STRING, 1, 1,
             List.of(TypeCategory.GENERAL), "HIBERNATE_EXTENSION", "1.0"));
+        // format({0} as 'pattern') — Hibernate 6 HQL 전용. DATE_FORMAT 대체 표준 방법
+        m.put("format", new FunctionEntry("format", TypeCategory.STRING, 2, 2,
+            List.of(TypeCategory.DATETIME, TypeCategory.GENERAL), "HIBERNATE_EXTENSION", "6.0"));
         return m;
     }
 }

@@ -192,6 +192,21 @@ class AcceptanceCriteriaTest {
             """, "D-08");
     }
 
+    // --- format 함수 (Hibernate 6 등록 함수 — DATE_FORMAT 대체) ---
+
+    @Test
+    void tc19_hibernateFormatFunction_notDetectedAsUnregistered() {
+        // format({0} as 'pattern') 은 Hibernate 6 등록 함수 → 미등록 함수로 오탐되면 안 됨
+        assertClean("""
+            BooleanExpression p = Expressions.stringTemplate("format({0} as 'yyyyMMdd')", col).goe(dttm);
+            """);
+    }
+
+    @Test
+    void tc20_hibernateFormatFunctionCatalogLookup() {
+        assertTrue(FunctionCatalog.isRegistered("format"), "format 은 Hibernate 6 등록 함수여야 함");
+    }
+
     // --- 부가 검증: D-08 Finding의 관련 라인 메시지 (I-06) ---
 
     @Test
