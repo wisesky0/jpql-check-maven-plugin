@@ -42,9 +42,11 @@ public final class FunctionCatalog {
         Map<String, FunctionEntry> map = new HashMap<>();
         JsonNode root = new ObjectMapper().readTree(in);
         for (JsonNode fn : root.path("functions")) {
-            String name = fn.path("name").asText(null);
-            if (name == null || name.isBlank()) continue;
-            TypeCategory category = TypeCategory.valueOf(fn.path("category").asText("GENERAL"));
+            JsonNode nameNode = fn.path("name");
+            if (!nameNode.isTextual()) continue;
+            String name = nameNode.textValue();
+            if (name.isBlank()) continue;
+            TypeCategory category = TypeCategory.valueOf(textOr(fn.path("category"), "GENERAL"));
             int minArgs = fn.path("minArgs").asInt(0);
             int maxArgs = fn.path("maxArgs").asInt(-1);
             List<TypeCategory> argCategories = null;
@@ -53,13 +55,17 @@ public final class FunctionCatalog {
                 argCategories = new ArrayList<>();
                 for (JsonNode c : argsNode) argCategories.add(TypeCategory.valueOf(c.asText()));
             }
-            String source = fn.path("source").asText("JPA_STANDARD");
-            String minJpaVersion = fn.path("minJpaVersion").asText("1.0");
+            String source = textOr(fn.path("source"), "JPA_STANDARD");
+            String minJpaVersion = textOr(fn.path("minJpaVersion"), "1.0");
             map.put(name.toLowerCase(Locale.ROOT),
                 new FunctionEntry(name.toLowerCase(Locale.ROOT), category, minArgs, maxArgs,
                     argCategories, source, minJpaVersion));
         }
         return map;
+    }
+
+    private static String textOr(JsonNode node, String defaultValue) {
+        return node.isTextual() ? node.textValue() : defaultValue;
     }
 
     /** jpql-functions.json 로드 실패 시 폴백. JSON과 동일한 함수 목록을 유지할 것. */
