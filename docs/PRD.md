@@ -11,14 +11,14 @@
 
 | 구분 | 마이그레이션 전 | 마이그레이션 후 |
 |---|---|---|
-| Spring Data JPA | 2.3.3.RELEASE (Hibernate 5.x) | 3.5.11 (Hibernate 6.x) |
+| Spring Data JPA | 2.3.3.RELEASE (Hibernate 5.4.20.Final) | 3.5.11 (Hibernate 6.6.49.Final) |
 | Java | 8 | 17 |
-| QueryDSL | 5.4 | 6.6 |
+| QueryDSL | 4.3.1 | 5.1.0 |
 | 빌드 도구 | Maven | Maven |
 
-Hibernate 6.x부터 JPQL(HQL) 쿼리 컴파일 시
+Hibernate 6.6.49.Final부터 JPQL(HQL) 쿼리 컴파일 시
 `org.hibernate.query.sqm.internal.TypecheckUtil`이 **표현식 간 타입 호환성을 엄격하게 검사**한다.
-Hibernate 5.x에서는 통과하던 QueryDSL `Expressions.*Template(...)` 기반 쿼리가
+Hibernate 5.4.20.Final에서는 통과하던 QueryDSL `Expressions.*Template(...)` 기반 쿼리가
 마이그레이션 후 **런타임에 예외를 발생**시키는 문제가 확인되었다.
 
 이 오류는 컴파일 타임에는 드러나지 않고 해당 쿼리가 실제 실행될 때만 발생하므로,
@@ -36,7 +36,7 @@ Expressions.numberTemplate(Long.class, "ABS({0})", qEntity.stringColumn)
 ```
 
 - **발생 지점**: `org.hibernate.query.sqm.internal.TypecheckUtil`
-- **원인**: Hibernate 6는 JPQL에 정의된 함수(`ABS` 등)의 시그니처를 알고 있으며,
+- **원인**: Hibernate 6.6.49.Final은 JPQL에 정의된 함수(`ABS` 등)의 시그니처를 알고 있으며,
   선언된 인자 타입(숫자)과 실제 전달된 표현식 타입(`String`)이 불일치하면 예외를 던진다.
 - **특징**: 템플릿 문자열에 적힌 **함수가 요구하는 인자 타입**과
   템플릿에 바인딩된 **QueryDSL 경로(Path)의 Java 타입**이 어긋나는 경우 전반에서 발생 가능.
@@ -57,7 +57,7 @@ Expressions.stringTemplate("DATE_FORMAT({0}, '%Y%m%d')", qEntity.column)
 ```
 
 - **발생 지점**: `org.hibernate.query.sqm.internal.TypecheckUtil`
-- **원인**: Hibernate 6는 자신에게 등록되지 않은 네이티브 함수(`DATE_FORMAT` 등)의
+- **원인**: Hibernate 6.6.49.Final은 자신에게 등록되지 않은 네이티브 함수(`DATE_FORMAT` 등)의
   반환 타입을 **`Object`로 간주**한다. 이 결과를 `where` / `having` 절에서
   엔티티의 `String` 컬럼과 비교(`goe`, `loe`, `gt`, `lt`, `eq` 등)하면
   `Object` vs `String` 타입 불일치로 예외가 발생한다.
@@ -75,7 +75,7 @@ Expressions.stringTemplate("DATE_FORMAT({0}, '%Y%m%d')", qEntity.column)
 |---|---|
 | R-01 | QueryDSL의 `Expressions.template(..)` 계열 메서드 전체를 나열한다. (`template`, `simpleTemplate`, `stringTemplate`, `numberTemplate`, `booleanTemplate`, `dateTemplate`, `timeTemplate`, `dateTimeTemplate`, `comparableTemplate`, `enumTemplate` 등) |
 | R-02 | R-01에서 나열한 각 메서드를 **오류 1 발생 가능 / 오류 2 발생 가능 / 해당 없음**으로 분류하고, 분류 근거를 문서화한다. |
-| R-03 | Hibernate 6 (ORM 6.x, Spring Data JPA 3.5.11 기준)가 인식하는 JPQL/HQL 함수와 각 함수의 파라미터 타입·반환 타입을 나열한다. |
+| R-03 | Hibernate 6.6.49.Final (Spring Data JPA 3.5.11 기준)가 인식하는 JPQL/HQL 함수와 각 함수의 파라미터 타입·반환 타입을 나열한다. |
 | R-04 | R-03의 함수 목록을 기준으로 각 함수가 오류 1 / 오류 2를 유발할 수 있는지 분류하고, 그 결과를 패턴 감지 규칙에 반영한다. |
 
 ### 3.2 감지 규칙 요구사항
@@ -102,7 +102,7 @@ Expressions.stringTemplate("DATE_FORMAT({0}, '%Y%m%d')", qEntity.column)
 
 1. **분석 문서**
    - QueryDSL `Expressions.template(..)` 계열 메서드 목록 및 오류 1/오류 2 발생 가능성 분류표 (R-01, R-02)
-   - Hibernate 6 JPQL 함수 목록(파라미터/반환 타입 포함) 및 오류 발생 가능성 분류표 (R-03, R-04)
+   - Hibernate 6.6.49.Final JPQL 함수 목록(파라미터/반환 타입 포함) 및 오류 발생 가능성 분류표 (R-03, R-04)
 2. **패턴 감지 계획서**: 위 분류표를 근거로 한 감지 규칙(D-01~D-04)과 제외 규칙(E-01~E-02)의 구체적 구현 계획
 3. **Maven 플러그인 구현**: 빌드 시점에 소스를 정적 분석하여 위험 패턴을 보고하는 플러그인
 
@@ -112,4 +112,4 @@ Expressions.stringTemplate("DATE_FORMAT({0}, '%Y%m%d')", qEntity.column)
 
 - 감지된 코드의 자동 수정(auto-fix)
 - QueryDSL Template 이외의 경로로 작성된 네이티브 쿼리(`@Query(nativeQuery = true)` 등) 분석
-- Hibernate 6.x 이외 버전에 대한 호환성 검증
+- Hibernate 6.6.49.Final 이외 버전에 대한 호환성 검증
