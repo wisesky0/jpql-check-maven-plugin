@@ -10,6 +10,7 @@
     <modules>
         <module>jpql-check-processor</module>
         <module>jpql-check-maven-plugin</module>
+        <module>jackson-creator-detector-maven-plugin</module>
     </modules>
     <properties>
         <java.version>17</java.version>
