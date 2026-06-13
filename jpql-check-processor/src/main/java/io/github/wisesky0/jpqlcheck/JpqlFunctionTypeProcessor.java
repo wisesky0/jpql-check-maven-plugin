@@ -12,6 +12,8 @@ import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import java.util.*;
 
+import io.github.wisesky0.jpqlcheck.join.JoinChainAnalyzer;
+
 /**
  * QueryDSL Expressions.*Template(..) 호출을 정적 분석하여
  * Hibernate 6.6.49.Final TypecheckUtil 런타임 오류 패턴을 감지한다.
@@ -58,7 +60,10 @@ public class JpqlFunctionTypeProcessor extends AbstractProcessor {
                         if (path == null && e.getCompilationUnit() != null) {
                             path = new TreePath(e.getCompilationUnit());
                         }
-                        if (path != null) new TemplateScanner().scan(path, null);
+                        if (path != null) {
+                            new TemplateScanner().scan(path, null);
+                            new JoinChainAnalyzer(trees, processingEnv, findings, isFailOnError()).scan(path, null);
+                        }
                     } else if (e.getKind() == TaskEvent.Kind.COMPILATION) {
                         writeReports();
                     }
@@ -82,9 +87,15 @@ public class JpqlFunctionTypeProcessor extends AbstractProcessor {
                 TreePath path = trees.getPath(element);
                 if (path == null) continue;
                 new TemplateScanner().scan(path, null);
+                new JoinChainAnalyzer(trees, processingEnv, findings, isFailOnError()).scan(path, null);
             }
         }
         return false;
+    }
+
+    boolean isFailOnError() {
+        return !"false".equalsIgnoreCase(
+            processingEnv.getOptions().getOrDefault("jpql.check.failOnError", "true"));
     }
 
     private void writeReports() {
@@ -445,9 +456,7 @@ public class JpqlFunctionTypeProcessor extends AbstractProcessor {
 
             // jpql.check.failOnError=false 이면 ERROR도 WARNING으로 출력하여
             // 컴파일을 중지시키지 않는다. 리포트의 Finding 심각도는 ERROR로 유지된다.
-            boolean failOnError = !"false".equalsIgnoreCase(
-                processingEnv.getOptions().getOrDefault("jpql.check.failOnError", "true"));
-            Diagnostic.Kind kind = "ERROR".equals(severity) && failOnError
+            Diagnostic.Kind kind = "ERROR".equals(severity) && isFailOnError()
                 ? Diagnostic.Kind.ERROR : Diagnostic.Kind.WARNING;
             Element element = trees.getElement(getCurrentPath());
             if (element != null) {
